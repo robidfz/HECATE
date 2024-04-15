@@ -1,0 +1,10 @@
+Some considerations:
+
+-- BN models eximate all CPDs around 0.5 since there are no much data and cases and the network structure probably provides for very specific cases
+-- RF models overfit since the target value is very often 0 less than 1 so the model learns to estimate 0 as target
+
+
+SOLUTIONS AND SUGGESTIONS:
+- Consider the overall changing diagnosis, not focusing on the single estimation of the changes in segments diagnosis
+- Change the BN model in a overall network
+- Try different approaches

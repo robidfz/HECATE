@@ -40,7 +40,8 @@ def preprocessing(config,df):
         opt2 = reader['SETTING2']['opt2']
         df[feature] = df[feature].map({opt1: 0, opt2: 1})
 
-        return df,net_number,features_initials,additive_features,target
+    return df,net_number,features_initials,additive_features,target
+
 def buildingDataset(df,features_initials, sg):
     features=features_initials.copy()
     features.append(sg)
@@ -88,7 +89,7 @@ def best_cv(model, x, y):
     y_test_best = []
     kf = KFold(n_splits=5)
     kf.get_n_splits()
-
+    x[np.isnan(x)] = 0
     for train_index, test_index in kf.split(x):
         X_train, X_test = x[train_index], x[test_index]
         y_train, y_test = y[train_index], y[test_index]
@@ -111,7 +112,7 @@ def best_cv(model, x, y):
 def feature_importance(rf,features,s,savepath):
     feature_imp = pd.Series(rf.feature_importances_, index=features).sort_values(ascending=False)
     sns.barplot(x=feature_imp, y=feature_imp.index)
-    '''
+
     xlim=np.max(feature_imp)
     plt.xlim(0,xlim)
     plt.xlabel('Feature importance score')
@@ -119,8 +120,6 @@ def feature_importance(rf,features,s,savepath):
     plt.title('Display most important features')
     plt.tight_layout()
     plt.savefig(savepath+'Features_importance_'+s+'.pdf')
-    '''
-    plt.show()
     plt.close()
 
 

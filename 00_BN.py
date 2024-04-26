@@ -1,3 +1,4 @@
+import plotly.express as px
 import pandas as pd
 import matplotlib.pyplot as plt
 from pgmpy.models import BayesianNetwork
@@ -6,7 +7,7 @@ from pgmpy.inference import VariableElimination
 import networkx as nx
 from configparser import ConfigParser
 import sys
-
+import plotly.io as pio
 
 def print_roman(number):
     retval = ""
@@ -24,28 +25,28 @@ def print_roman(number):
 
 
 def age_grouping(x):
-    group = 3
+    group = 'elders'
     if 35 <= x < 50:
-        group = 1
+        group = 'youngs'
     elif 50 <= x < 65:
-        group = 2
+        group = 'middle-aged'
     return group
 
 
-def preprocessing(config):
+def preprocessing(config, dataframe):
     reader = ConfigParser()
     reader.read(config)
     features_initials = reader['FEATURES']['f_list'].split(',')
     property = reader['ADDITIVE FEATURES']['property']
-    if (property == 'true'):
+    if property == 'true':
         additive_features = reader['ADDITIVE FEATURES']['f_list'].split(',')
     target = reader['NETWORK SETTING']['target'].split(',')
     net_number = int(reader['NETWORK SETTING']['number_of_net'])
     setting = reader['PREPROCESSING SETTING']['property']
-    if (setting == 'true'):
+    if setting == 'true':
         feature = reader['PREPROCESSING SETTING']['value']
         new_feature = reader['PREPROCESSING SETTING']['new_feature']
-        df[new_feature] = df[feature].apply(age_grouping)
+        dataframe[new_feature] = dataframe[feature].apply(age_grouping)
         return net_number, features_initials, additive_features, target
 
 
@@ -84,44 +85,83 @@ def get_evidence_names(index):
     post_name = print_roman(index + 1) + " POST"
     return pre_name, post_name
 
-'''    
-    distribution = ve.query(
-        variables=["Sex", "Age Group", "Tumor Type", "CT", "RMN", "PET-CT"],
-        evidence={yes_variable: 1, no_variable: 0},
+
+def evidence(pre_variable, post_variable, label, target, analysisengine):
+    if label == 'False Positives':
+        true_variable = post_variable
+        false_variable = pre_variable
+    else:
+        false_variable = post_variable
+        true_variable = pre_variable
+    distribution = analysisengine.query(
+        variables=[target],
+        evidence={true_variable: 'Positive', false_variable: 'Negative'},
         joint=True
     )
-'''
-
-def evidence(yes_variable, no_variable, label):
-    outfile_name = evidence_pre_name + "_" + evidence_post_name + "." + label + ".distribution"
-    distribution = ve.query(
-        variables=["PET-CT"],
-        evidence={yes_variable: 1, no_variable: 0},
-        joint=True
-    )
-    outfile_handle = open(outfile_name, "w")
-    outfile_handle.write(str(distribution))
-    outfile_handle.close()
+    return tuple(distribution.values)
 
 
-#Tumor type---> Met 0 Primary 1 ExtraHepatic 2
+def processnames(states):
+    retval = dict(states)
+    for k in retval.keys():
+        retval[k] = list(map(lambda x: str(x), retval[k]))
+    return retval
+
+
 if __name__ == "__main__":
     if len(sys.argv) == 3:
         configfile_name = sys.argv[1]
         dataset_name = sys.argv[2]
         df = pd.read_csv(dataset_name)
-        net_number, features_initials, additive_features, target = preprocessing(configfile_name)
+        net_number, features_initials, additive_features, targets = preprocessing(configfile_name, df)
+        models = dict()
+        segments = []
+        statelabels = None
         for i in range(net_number):
             features_initials.append(additive_features[i])
-            couples, data = buildingDataset(df, features_initials, target[i])
+            couples, data = buildingDataset(df, features_initials, targets[i])
             model = BayesianNetwork(couples)
-            drawing_net(model, features_initials, target[i])
+            drawing_net(model, features_initials, targets[i])
             model.fit(data, estimator=MaximumLikelihoodEstimator)
-            CDP_estimation(model, data, target[i])
+            CDP_estimation(model, data, targets[i])
             features_initials.remove(additive_features[i])
-            ve = VariableElimination(model)
-            evidence_pre_name, evidence_post_name = get_evidence_names(i)
-            evidence(evidence_post_name, evidence_pre_name, "falsepositive")
-            evidence(evidence_pre_name, evidence_post_name, "falsenegative")
+            models[i] = model
+            if statelabels is None:
+                statelabels = processnames(model.states) #from array to dictionary
+            segments.append(print_roman(i + 1))
+        segmentnames = list(segments)
+        segments = list(map(lambda x: (x + " PRE", x + " POST"), segments))
+        pio.kaleido.scope.mathjax = None
+        for target in features_initials:
+            for analysis in ['False Positives', 'False Negatives']:
+                aposteriori = []
+                apriori = None
+                for i in range(net_number):
+                    model = models[i]
+                    ve = VariableElimination(model)
+                    if apriori is None:
+                        apriori = ve.query(variables=[target], joint=True).values
+                    evidence_pre_name, evidence_post_name = segments[i]
+                    analysisresults = evidence(evidence_pre_name, evidence_post_name, analysis, target, ve)
+                    aposteriori.append(analysisresults)
+                aposteriori = list(map(list, zip(*aposteriori)))
+                kolors = ['red', 'green', 'purple']
+                fig = px.bar(title=target + "/" + analysis)
+                fig.update_xaxes(title_text='Liver segments',showline=True)
+                fig.update_yaxes(title_text='Likelihood',showline=True)
+                for i in range(0, len(apriori)):
+                    fig.add_hline(y = apriori[i], line_width=2, line_dash="dash", line_color=kolors[i])
+                    fig.add_bar(x = segmentnames, y = aposteriori[i], name=statelabels[target][i])
+                fig.update_layout(barmode='group')
+                fig.write_image("output_" + target + "_" + analysis + ".pdf", engine="kaleido")
     else:
         print('error')
+
+
+'''
+
+                fig = go.Figure(
+                data = [
+                    go.Bar(name=analysis, x=segments, y=aposteriori)
+                ])
+'''

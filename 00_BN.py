@@ -1,5 +1,7 @@
+import numpy as np
 import plotly.express as px
 import pandas as pd
+import matplotlib as mlp
 import matplotlib.pyplot as plt
 from pgmpy.models import BayesianNetwork
 from pgmpy.estimators import MaximumLikelihoodEstimator
@@ -7,6 +9,7 @@ from pgmpy.inference import VariableElimination
 import networkx as nx
 from configparser import ConfigParser
 import sys
+import seaborn as sns
 import plotly.io as pio
 
 def print_roman(number):
@@ -47,7 +50,9 @@ def preprocessing(config, dataframe):
         feature = reader['PREPROCESSING SETTING']['value']
         new_feature = reader['PREPROCESSING SETTING']['new_feature']
         dataframe[new_feature] = dataframe[feature].apply(age_grouping)
-        return net_number, features_initials, additive_features, target
+    type = reader['ANALYSIS TYPE']['t_list'].split(',')
+
+    return net_number, features_initials, additive_features, target,type
 
 
 def buildingDataset(df, features_initials, sg):
@@ -61,7 +66,7 @@ def buildingDataset(df, features_initials, sg):
     return couples, data
 
 
-def drawing_net(model, features_initials, sg):
+def drawing_net(model, couples, sg):
     fig, ax = plt.subplots(figsize=(50, 10))
     G = nx.Graph()
     for elem in couples:
@@ -70,6 +75,12 @@ def drawing_net(model, features_initials, sg):
         G.add_edge(elem[0], elem[1])
     pos = nx.spring_layout(G)
     nx.draw(model, pos=pos, with_labels=True, node_size=4000, font_size=20, arrowsize=20, node_color='red', ax=ax)
+    latex_code = nx.to_latex(G, pos=pos)
+    log_file = open("latex_code.txt", 'a+')
+    log_file.write("Latex code for BN of the segment "+sg+"\n")
+    log_file.write(latex_code)
+    log_file.write("\n\n\n")
+    log_file.close()
     plt.savefig('BN_' + sg + '.pdf')
     plt.close()
 
@@ -106,6 +117,76 @@ def processnames(states):
     for k in retval.keys():
         retval[k] = list(map(lambda x: str(x), retval[k]))
     return retval
+def building_network(df,features_initials,net_number,targets ):
+    models = dict()
+    segments = []
+    statelabels = None
+    for i in range(net_number):
+        features_initials.append(additive_features[i])
+        couples, data = buildingDataset(df, features_initials, targets[i])
+        model = BayesianNetwork(couples)
+        drawing_net(model, couples, targets[i])
+        model.fit(data, estimator=MaximumLikelihoodEstimator)
+        CDP_estimation(model, data, targets[i])
+        features_initials.remove(additive_features[i])
+        models[i] = model
+        if statelabels is None:
+            statelabels = processnames(model.states)  # from array to dictionary
+        segments.append(print_roman(i + 1))
+    segmentnames = list(segments)
+    segments = list(map(lambda x: (x + " PRE", x + " POST"), segments))
+    return models,segments
+def analysis(features_initials,type,models,net_number,segments):
+    average_deltas=list()
+    for target in features_initials:
+        deltas_features = list()
+        for analysis in type:
+            aposteriori = []
+            deltas = []
+            apriori = None
+            for i in range(net_number):
+                model = models[i]
+                ve = VariableElimination(model)
+                if apriori is None:
+                    apriori = ve.query(variables=[target], joint=True).values
+                evidence_pre_name, evidence_post_name = segments[i]
+                analysisresults = evidence(evidence_pre_name, evidence_post_name, analysis, target, ve)
+                aposteriori.append(analysisresults)
+                deltas.append(abs(apriori - aposteriori[i]))
+            aposteriori = list(map(list, zip(*aposteriori)))
+            deltas = list(map(list, zip(*deltas)))
+            values_tot = 0
+            for values in deltas:
+                for v in values:
+                    values_tot += v
+            values_tot = values_tot / len(deltas)
+            deltas_features.append(values_tot)
+        average_deltas.append(deltas_features)
+    return average_deltas
+
+def drawing_features_impact(average_deltas,type):
+    df = pd.DataFrame()
+    df['Features'] = features_initials
+    for t, v in enumerate(type):
+        df[v] = [elem[t] for elem in average_deltas]
+    df.sort_values(by=type, inplace=True, ascending=True)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    labels = df['Features']
+    width = 0.4
+    plot_title = 'Features Impact'
+    title_size = 18
+    filename = 'features_impact'
+    y = np.arange(len(labels))
+    width_list=[y + width / 2, y - width / 2]
+    for i,t in enumerate(type):
+        first_bar = df[t]
+        first_bar_label = t
+        ax.barh(width_list[i], first_bar, width, label=first_bar_label)
+    title = plt.title(plot_title, fontsize=title_size)
+    ax.set_yticklabels(labels)
+    ax.legend()
+    plt.yticks(np.arange(min(y), max(y) + 1, 1.0))
+    plt.savefig(filename + '.pdf')
 
 
 if __name__ == "__main__":
@@ -113,55 +194,15 @@ if __name__ == "__main__":
         configfile_name = sys.argv[1]
         dataset_name = sys.argv[2]
         df = pd.read_csv(dataset_name)
-        net_number, features_initials, additive_features, targets = preprocessing(configfile_name, df)
-        models = dict()
-        segments = []
-        statelabels = None
-        for i in range(net_number):
-            features_initials.append(additive_features[i])
-            couples, data = buildingDataset(df, features_initials, targets[i])
-            model = BayesianNetwork(couples)
-            drawing_net(model, features_initials, targets[i])
-            model.fit(data, estimator=MaximumLikelihoodEstimator)
-            CDP_estimation(model, data, targets[i])
-            features_initials.remove(additive_features[i])
-            models[i] = model
-            if statelabels is None:
-                statelabels = processnames(model.states) #from array to dictionary
-            segments.append(print_roman(i + 1))
-        segmentnames = list(segments)
-        segments = list(map(lambda x: (x + " PRE", x + " POST"), segments))
-        pio.kaleido.scope.mathjax = None
-        for target in features_initials:
-            for analysis in ['False Positives', 'False Negatives']:
-                aposteriori = []
-                apriori = None
-                for i in range(net_number):
-                    model = models[i]
-                    ve = VariableElimination(model)
-                    if apriori is None:
-                        apriori = ve.query(variables=[target], joint=True).values
-                    evidence_pre_name, evidence_post_name = segments[i]
-                    analysisresults = evidence(evidence_pre_name, evidence_post_name, analysis, target, ve)
-                    aposteriori.append(analysisresults)
-                aposteriori = list(map(list, zip(*aposteriori)))
-                kolors = ['red', 'green', 'purple']
-                fig = px.bar(title=target + "/" + analysis)
-                fig.update_xaxes(title_text='Liver segments',showline=True)
-                fig.update_yaxes(title_text='Likelihood',showline=True)
-                for i in range(0, len(apriori)):
-                    fig.add_hline(y = apriori[i], line_width=2, line_dash="dash", line_color=kolors[i])
-                    fig.add_bar(x = segmentnames, y = aposteriori[i], name=statelabels[target][i])
-                fig.update_layout(barmode='group')
-                fig.write_image("output_" + target + "_" + analysis + ".pdf", engine="kaleido")
-    else:
-        print('error')
+        net_number, features_initials, additive_features, targets,type= preprocessing(configfile_name, df)
+        models, segments= building_network(df,features_initials,net_number,targets)
+        average_deltas=analysis(features_initials,type,models,net_number,segments)
+        drawing_features_impact(average_deltas,type)
 
 
-'''
 
-                fig = go.Figure(
-                data = [
-                    go.Bar(name=analysis, x=segments, y=aposteriori)
-                ])
-'''
+
+
+
+
+

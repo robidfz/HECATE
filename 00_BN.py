@@ -67,14 +67,15 @@ def buildingDataset(df, features_initials, sg):
 
 
 def drawing_net(model, couples, sg):
-    fig, ax = plt.subplots(figsize=(50, 10))
+    fig, ax = plt.subplots(figsize=(12, 7))
     G = nx.Graph()
     for elem in couples:
         G.add_node(elem[0], color='blue', size=500)
-        G.add_node(elem[1], color='red', size=500)
+        G.add_node(elem[1], color='white', size=1000)
         G.add_edge(elem[0], elem[1])
     pos = nx.spring_layout(G)
-    nx.draw(model, pos=pos, with_labels=True, node_size=4000, font_size=20, arrowsize=20, node_color='red', ax=ax)
+    nx.draw(model, pos=pos, with_labels=True, node_size=4000, font_size=16, arrowsize=40, node_color='blue',
+            ax=ax)
     latex_code = nx.to_latex(G, pos=pos)
     log_file = open("latex_code.txt", 'a+')
     log_file.write("Latex code for BN of the segment "+sg+"\n")

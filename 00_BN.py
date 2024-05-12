@@ -67,7 +67,7 @@ def buildingDataset(df, features_initials, sg):
 
 
 def drawing_net(model, couples, sg):
-    fig, ax = plt.subplots(figsize=(12, 7))
+    fig, ax = plt.subplots(figsize=(12, 10))
     G = nx.Graph()
     for elem in couples:
         G.add_node(elem[0], color='grey', size=500)

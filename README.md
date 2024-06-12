@@ -3,7 +3,7 @@
 
 This repository is the official code for the paper "Towards Hepatic Cancer Detection with Bayesian Networks for Patients Digital Twins Modelling" by Roberta De Fazio, Adrian Bartos, Viviana Leonetti, Stefano Marrone and Laura Verde.
 
-![Workflow](https://github.com/robidfz/HECATE/blob/main/Figures/LDTH-workflow.pdf)
+![Workflow](https://github.com/robidfz/HECATE/blob/main/Figures/LDTH-workflow.png)
 
 ## Citation
 Please cite our work if you find it useful for your research and work.

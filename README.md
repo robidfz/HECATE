@@ -31,8 +31,8 @@ Packages needed are:
 * numpy
 * pandas
 * matplotlib
-* pgmpy
-* networkx
+* pgmpy 0.1.25
+* networkx 3.3
 
 
 ## Data

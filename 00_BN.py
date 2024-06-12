@@ -1,7 +1,5 @@
 import numpy as np
-import plotly.express as px
 import pandas as pd
-import matplotlib as mlp
 import matplotlib.pyplot as plt
 from pgmpy.models import BayesianNetwork
 from pgmpy.estimators import MaximumLikelihoodEstimator
@@ -9,8 +7,7 @@ from pgmpy.inference import VariableElimination
 import networkx as nx
 from configparser import ConfigParser
 import sys
-import seaborn as sns
-import plotly.io as pio
+
 
 def print_roman(number):
     retval = ""

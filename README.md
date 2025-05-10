@@ -9,17 +9,16 @@ This repository is the official code for the paper "Towards Hepatic Cancer Detec
 Please cite our work if you find it useful for your research and work.
 
 ```
-@article{DeFazioKES24,
-  author = {De Fazio, Roberta and Bartos, Adrian and Leonetti, Viviana and Marrone, Stefano and Verde, Laura} 
+@article{DeFazio2024,
+  title = {Towards Hepatic Cancer Detection with Bayesian Networks for Patients Digital Twins Modelling},
+  volume = {246},
+  ISSN = {1877-0509},
+  DOI = {10.1016/j.procs.2024.09.598},
   journal = {Procedia Computer Science},
-  publicher = {Elsevier BV} 
-  title = {Towards Hepatic Cancer Detection with Bayesian Networks for Patients Digital Twins Modelling}, 
-  year = {},
-  volume = {},
-  number = {},
-  pages = {},
-  keywords = {Hepatic Cancer, Patient Digital Twin, Bayesian Networks, Machine Learning, Intraoperative Ultrasound},
-  doi = {}
+  publisher = {Elsevier BV},
+  author = {De Fazio,  Roberta and Bartoş,  Adrian and Leonetti,  Viviana and Marrone,  Stefano and Verde,  Laura},
+  year = {2024},
+  pages = {5104–5113}
 }
 ```
 
